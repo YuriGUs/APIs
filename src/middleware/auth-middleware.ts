@@ -26,19 +26,26 @@ export class MiddlewareAuth {
       });
     }
 
-    try {
-      await jwt.verify(token, `${process.env.JWT_SECRET}`);
-    } catch (error) {
-      return res.status(401).json({
-        error: EZod.E401,
-      });
+    // bloco de function token verification
+    async function verifyToken(token: string) {
+      try {
+        await jwt.verify(token, `${process.env.JWT_SECRET}`);
+        console.log("passei aq");
+      } catch (error) {
+        console.log("estou no catch do verify");
+        return res.status(401).json({
+          error: EZod.E401,
+        });
+      }
     }
+    verifyToken(token);
+    // fim bloco function
 
     const paramsId = req.params.id;
     const decoded = ((await jwt.decode(token)) as { payload: { id: string } })
       .payload;
 
-    if (paramsId && paramsId != decoded.id) {
+    if (paramsId && paramsId !== decoded.id) {
       return res.status(400).json({
         message: EZod.E400,
       });
