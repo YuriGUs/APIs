@@ -1,5 +1,7 @@
 import { EZod } from "enum/zod.enum";
 import { prismaConnect } from "prismaConn";
+import { UtilsSendMail } from "../utils/send-mail-utils";
+import bcrypt from "bcrypt";
 
 class ResetPasswordService {
   public async validateUser(email: string) {
@@ -36,15 +38,79 @@ class ResetPasswordService {
         },
       });
 
+      UtilsSendMail.send(email, secret); // função que envia o código para o email solicitado
       // retorna o email e a secret gerada para o data do controller
       return { email, secret };
     }
 
+    UtilsSendMail.send(email, findUser.resetPasswordSecret.secret);
     // return caso a secret já exista
     return { email, secret: findUser.resetPasswordSecret.secret };
   }
-  public async validateSecurityCode() {}
-  public async resetPassword() {}
+  public async validateSecurityCode(email: string, secret: number) {
+    // busca o usuario no BD e pega o reset secret atrelado a esse usuario
+    const findUser = await prismaConnect.user.findUnique({
+      where: {
+        email,
+      },
+      include: {
+        resetPasswordSecret: true,
+      },
+    });
+
+    if (
+      !findUser ||
+      !findUser.resetPasswordSecret ||
+      findUser.resetPasswordSecret.secret !== secret
+    ) {
+      throw new Error(EZod.E404);
+    }
+
+    return { email, secret };
+  }
+  public async resetPassword(
+    email: string,
+    secret: number,
+    newPassword: string
+  ) {
+    const findUser = await prismaConnect.user.findUnique({
+      where: {
+        email,
+      },
+      include: {
+        resetPasswordSecret: true,
+      },
+    });
+
+    if (
+      !findUser ||
+      !findUser.resetPasswordSecret ||
+      findUser.resetPasswordSecret.secret !== secret
+    ) {
+      throw new Error(EZod.E404);
+    }
+
+    const update = await prismaConnect.user.update({
+      where: {
+        email,
+      },
+      data: {
+        password: bcrypt.hashSync(newPassword, 6),
+      },
+      select: {
+        name: true,
+        email: true,
+      },
+    });
+
+    await prismaConnect.resetPasswordSecret.delete({
+      where: {
+        userId: findUser.id,
+      },
+    });
+
+    return update;
+  }
 }
 
 export const resetPasswordService = new ResetPasswordService();

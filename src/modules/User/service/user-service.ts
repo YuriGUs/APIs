@@ -1,8 +1,6 @@
 import { prismaConnect } from "prismaConn";
 import bcrypt from "bcrypt";
-import { UtilsFileUser } from "../utils/file-utils";
-import { error } from "console";
-import { throws } from "assert";
+import { UtilsFileUser } from "../../../utils/file-utils";
 
 class UserService {
   public async create(name: string, email: string, password: string) {
